@@ -137,6 +137,16 @@ All routes are under `/api/v1`. Full docs: http://localhost:4000/api/docs
 QR codes use the **EMVCo format** (same as LankaQR) with a CRC checksum.
 They use a fake `LK.QRGUARD.DEMO` id, so they never work in a real bank app.
 
+## Install as an app (PWA)
+
+The web app is a **Progressive Web App**. On a phone, open it in Chrome (Android) or
+Safari (iPhone) and choose **Add to Home screen** / **Install app**. It then opens full
+screen like a normal app.
+
+- If there is no internet, it shows an offline page that warns: do not pay until the QR is checked.
+- Scan results are never cached, so they are always live.
+- Installing needs **HTTPS** (or `localhost`). The camera for QR scanning needs HTTPS too.
+
 ## Build phases
 
 - [x] **Phase 1** – Setup (monorepo, Docker, health checks)
