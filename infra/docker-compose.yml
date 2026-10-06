@@ -80,6 +80,12 @@ services:
       S3_BUCKET: ${S3_BUCKET:-qrguard}
       S3_FORCE_PATH_STYLE: 'true'
       AI_SERVICE_URL: http://ai-service:8000
+      # Required: set these in infra/.env (see .env.example).
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in infra/.env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in infra/.env}
+      # Demo data: docker compose exec api node dist/seed/run.js
+      SEED_ENABLED: 'true'
+      SEED_PASSWORD: ${SEED_PASSWORD:-}
     ports: ['4000:4000']
     depends_on:
       mongo: { condition: service_healthy }
@@ -94,6 +100,8 @@ services:
     restart: unless-stopped
     environment:
       API_INTERNAL_URL: http://api:4000
+      # Local stack runs on plain http. Use true behind HTTPS.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
     ports: ['3000:3000']
     depends_on:
       api: { condition: service_healthy }

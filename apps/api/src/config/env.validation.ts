@@ -8,6 +8,7 @@ import {
   IsUrl,
   Max,
   Min,
+  MinLength,
   validateSync,
 } from 'class-validator';
 
@@ -52,6 +53,23 @@ class EnvVars {
 
   @IsUrl({ require_tld: false })
   AI_SERVICE_URL: string;
+
+  // Long random strings. Access and refresh secrets must be different.
+  @IsString()
+  @MinLength(32)
+  JWT_ACCESS_SECRET: string;
+
+  @IsString()
+  @MinLength(32)
+  JWT_REFRESH_SECRET: string;
+
+  @IsInt()
+  @Min(60)
+  JWT_ACCESS_TTL_SECONDS: number = 900; // 15 minutes
+
+  @IsInt()
+  @Min(60)
+  JWT_REFRESH_TTL_SECONDS: number = 604800; // 7 days
 }
 
 export type Env = EnvVars;
@@ -64,6 +82,9 @@ export function validateEnv(raw: Record<string, unknown>): EnvVars {
       (e) => `${e.property}: ${Object.values(e.constraints ?? {}).join(', ')}`,
     );
     throw new Error(`Invalid environment variables:\n${list.join('\n')}`);
+  }
+  if (env.JWT_ACCESS_SECRET === env.JWT_REFRESH_SECRET) {
+    throw new Error('JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different');
   }
   return env;
 }
