@@ -1,0 +1,10 @@
+{
+  "extends": "@qrguard/config/tsconfig/nestjs.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "baseUrl": "./",
+    "declaration": false,
+    "types": ["node", "jest"]
+  },
+  "include": ["src"]
+}

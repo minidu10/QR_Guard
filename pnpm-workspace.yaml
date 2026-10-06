@@ -1,0 +1,10 @@
+packages:
+  - 'apps/web'
+  - 'apps/api'
+  - 'packages/*'
+
+# Allow these packages to run their install scripts.
+onlyBuiltDependencies:
+  - '@tailwindcss/oxide'
+  - 'sharp'
+  - 'unrs-resolver'
