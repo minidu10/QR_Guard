@@ -28,9 +28,12 @@ You need Docker with Compose v2.
 
 ```bash
 cd infra
-cp .env.example .env      # then change the passwords
+cp .env.example .env      # then fill in the secrets and passwords
 docker compose up --build
 ```
+
+In `infra/.env` you must set `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (make each with
+`openssl rand -hex 32`) and `SEED_PASSWORD`.
 
 Or from the repo root: `pnpm docker:up` (and `pnpm docker:down`).
 
@@ -51,6 +54,27 @@ It only creates the storage bucket, then stops.
 > Note: MinIO no longer publishes official Docker images. We use `pgsty/minio`, a maintained
 > community build of the same server.
 
+## Demo data
+
+Fill the database with 4 demo users, 5 shops (Colombo, Kandy, Galle, Nugegoda, Pettah),
+one QR code per shop and 14 days of fake payments:
+
+```bash
+cd infra
+docker compose exec api node dist/seed/run.js
+```
+
+> This **deletes** all users, shops, QR codes and payments first.
+
+Demo logins (password = your `SEED_PASSWORD`):
+
+| Email               | Role                                   |
+| ------------------- | -------------------------------------- |
+| admin@qrguard.lk    | admin (bank team)                      |
+| owner1@qrguard.lk   | shop owner (3 shops)                   |
+| owner2@qrguard.lk   | shop owner (2 shops, one not verified) |
+| customer@qrguard.lk | customer                               |
+
 ## Run apps without Docker (for development)
 
 You need Node.js 22+, pnpm 10 and Python 3.12+.
@@ -67,6 +91,7 @@ pnpm install
 cp apps/api/.env.example apps/api/.env          # use the same MinIO user/password as infra/.env
 cp apps/web/.env.example apps/web/.env.local
 pnpm dev                                        # runs web (3000) and api (4000)
+pnpm --filter api seed                          # demo data (uses apps/api/.env)
 ```
 
 AI service on its own:
@@ -94,10 +119,28 @@ cd apps/ai-service && pytest && ruff check .
 `GET /api/v1/health` checks MongoDB, Redis, file storage and the AI service.
 It returns `200` when all are up, and `503` if one is down.
 
+## API so far
+
+All routes are under `/api/v1`. Full docs: http://localhost:4000/api/docs
+
+| Route                                 | Who               | What                                                             |
+| ------------------------------------- | ----------------- | ---------------------------------------------------------------- |
+| `POST /auth/register`                 | anyone            | sign up as customer or owner                                     |
+| `POST /auth/login`                    | anyone            | get access + refresh tokens                                      |
+| `POST /auth/refresh`                  | anyone            | swap a refresh token for a new pair (old one stops working)      |
+| `POST /shops`                         | owner, admin      | create a shop (inside Sri Lanka)                                 |
+| `GET /shops/:id`                      | anyone            | one shop                                                         |
+| `GET /shops/nearby?lat=&lng=&radius=` | anyone            | shops near a point, closest first                                |
+| `POST /shops/:id/qrcodes`             | shop owner, admin | new QR code (+ PNG image). `{ "rotate": true }` revokes old ones |
+| `PATCH /qrcodes/:id/revoke`           | shop owner, admin | revoke a QR code                                                 |
+
+QR codes use the **EMVCo format** (same as LankaQR) with a CRC checksum.
+They use a fake `LK.QRGUARD.DEMO` id, so they never work in a real bank app.
+
 ## Build phases
 
 - [x] **Phase 1** – Setup (monorepo, Docker, health checks)
-- [ ] Phase 2 – Auth, shops, QR codes, seed data
+- [x] **Phase 2** – Auth, shops, QR codes, seed data, login + sign-up pages
 - [ ] Phase 3 – Scan check
 - [ ] Phase 4 – Real-time alerts
 - [ ] Phase 5 – AI service (mock)
