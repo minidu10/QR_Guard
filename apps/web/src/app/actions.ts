@@ -6,6 +6,11 @@ import { ApiError, apiFetch } from '@/lib/api';
 import { clearSession, saveSession } from '@/lib/session';
 import { fieldErrors, type FormState, loginSchema, registerSchema } from '@/lib/validation';
 
+// Owners and admins start on their dashboard. Customers start on the home page.
+function homeFor(auth: AuthResponse): string {
+  return auth.user.role === 'customer' ? '/' : '/dashboard';
+}
+
 // Keep typed values (never the password) so the form is not wiped on error.
 function keep(form: FormData, keys: string[]) {
   return Object.fromEntries(keys.map((k) => [k, String(form.get(k) ?? '')]));
@@ -16,8 +21,9 @@ export async function loginAction(_prev: FormState, form: FormData): Promise<For
   const parsed = loginSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error), values };
 
+  let auth: AuthResponse;
   try {
-    const auth = await apiFetch<AuthResponse>('/auth/login', {
+    auth = await apiFetch<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(parsed.data),
     });
@@ -25,7 +31,7 @@ export async function loginAction(_prev: FormState, form: FormData): Promise<For
   } catch (err) {
     return { error: err instanceof ApiError ? err.message : 'Login failed.', values };
   }
-  redirect('/');
+  redirect(homeFor(auth));
 }
 
 export async function registerAction(_prev: FormState, form: FormData): Promise<FormState> {
@@ -33,8 +39,9 @@ export async function registerAction(_prev: FormState, form: FormData): Promise<
   const parsed = registerSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error), values };
 
+  let auth: AuthResponse;
   try {
-    const auth = await apiFetch<AuthResponse>('/auth/register', {
+    auth = await apiFetch<AuthResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(parsed.data),
     });
@@ -42,7 +49,7 @@ export async function registerAction(_prev: FormState, form: FormData): Promise<
   } catch (err) {
     return { error: err instanceof ApiError ? err.message : 'Sign up failed.', values };
   }
-  redirect('/');
+  redirect(homeFor(auth));
 }
 
 export async function logoutAction() {

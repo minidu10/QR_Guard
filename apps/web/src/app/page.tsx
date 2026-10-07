@@ -42,6 +42,11 @@ export default async function HomePage() {
             Logged in as <span className="font-medium">{user.name}</span>{' '}
             <Badge variant="outline">{user.role}</Badge>
           </p>
+          {user.role !== 'customer' && (
+            <Link href="/dashboard" className={buttonVariants({ size: 'sm' })}>
+              Dashboard
+            </Link>
+          )}
           <form action={logoutAction}>
             <Button type="submit" variant="outline" size="sm">
               Log out

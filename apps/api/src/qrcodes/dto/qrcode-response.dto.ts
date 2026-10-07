@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import type { GeneratedQrCode, QrCode, QrCodeStatus } from '@qrguard/types';
+import type { GeneratedQrCode, QrCode, QrCodeListItem, QrCodeStatus } from '@qrguard/types';
 
 export class QrCodeDto implements QrCode {
   @ApiProperty({ format: 'uuid' }) id: string;
@@ -15,4 +15,9 @@ export class QrCodeDto implements QrCode {
 export class GeneratedQrCodeDto extends QrCodeDto implements GeneratedQrCode {
   @ApiProperty({ description: 'QR image as a PNG data URL, ready for <img src>.' })
   qrImage: string;
+}
+
+export class QrCodeListItemDto extends QrCodeDto implements QrCodeListItem {
+  @ApiProperty({ type: String, nullable: true, description: 'PNG data URL (active codes only).' })
+  qrImage: string | null;
 }

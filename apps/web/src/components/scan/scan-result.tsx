@@ -3,6 +3,7 @@ import { BadgeCheck, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { DemoPay } from './demo-pay';
 
 // Big green "Safe to pay" or red "Do not pay" screen.
 export function ScanResult({
@@ -45,6 +46,10 @@ export function ScanResult({
             </Badge>
           )}
         </div>
+      )}
+
+      {safe && shop && result.merchantId && (
+        <DemoPay merchantId={result.merchantId} shopName={shop.name} />
       )}
 
       {!safe && result.qrMerchantName && (

@@ -5,8 +5,10 @@ import { AlertsModule } from './alerts/alerts.module';
 import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env.validation';
 import { HealthModule } from './health/health.module';
+import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { QrCodesModule } from './qrcodes/qrcodes.module';
+import { RealtimeModule } from './realtime/realtime.module';
 import { ScanModule } from './scan/scan.module';
 import { ShopsModule } from './shops/shops.module';
 import { UsersModule } from './users/users.module';
@@ -17,6 +19,7 @@ import { UsersModule } from './users/users.module';
     // Rate limits for public routes (used with ThrottlerGuard on each route).
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 60 }]),
     PrismaModule,
+    RealtimeModule,
     HealthModule,
     AuthModule,
     UsersModule,
@@ -24,6 +27,7 @@ import { UsersModule } from './users/users.module';
     QrCodesModule,
     AlertsModule,
     ScanModule,
+    PaymentsModule,
   ],
 })
 export class AppModule {}

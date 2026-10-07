@@ -1,4 +1,4 @@
-import { Body, Controller, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -11,7 +11,7 @@ import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateQrCodeDto } from './dto/create-qrcode.dto';
-import { GeneratedQrCodeDto, QrCodeDto } from './dto/qrcode-response.dto';
+import { GeneratedQrCodeDto, QrCodeDto, QrCodeListItemDto } from './dto/qrcode-response.dto';
 import { QrCodesService } from './qrcodes.service';
 
 @ApiTags('qrcodes')
@@ -31,6 +31,16 @@ export class QrCodesController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.qrcodes.generate(shopId, user, dto.rotate);
+  }
+
+  @Get('shops/:id/qrcodes')
+  @ApiOkResponse({
+    type: [QrCodeListItemDto],
+    description: 'Newest first. Active ones have an image.',
+  })
+  @ApiNotFoundResponse({ description: 'Shop not found.' })
+  list(@Param('id', ParseUUIDPipe) shopId: string, @CurrentUser() user: AuthUser) {
+    return this.qrcodes.listForShop(shopId, user);
   }
 
   @Patch('qrcodes/:id/revoke')

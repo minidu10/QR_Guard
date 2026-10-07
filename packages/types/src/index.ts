@@ -67,6 +67,11 @@ export interface GeneratedQrCode extends QrCode {
   qrImage: string;
 }
 
+/** A QR code in a shop's list. Only active codes include the image. */
+export interface QrCodeListItem extends QrCode {
+  qrImage: string | null;
+}
+
 /** Why a scan is safe or not. */
 export type ScanReason =
   'OK' | 'NOT_PAYMENT_QR' | 'BAD_CHECKSUM' | 'UNKNOWN_MERCHANT' | 'REVOKED_QR' | 'WRONG_SHOP';
@@ -92,6 +97,8 @@ export interface ScanResponse {
   expectedShop: ShopSummary | null;
   /** Merchant name written inside the QR (a fake QR can copy the real name). */
   qrMerchantName: string | null;
+  /** Merchant id inside the QR (used to make a demo payment after a safe scan). */
+  merchantId: string | null;
 }
 
 export type AlertType = 'SCAN_MISMATCH' | 'TAMPER_DETECTED' | 'PAYMENT_DROP' | 'CUSTOMER_REPORT';
@@ -112,4 +119,37 @@ export interface Alert {
 /** An alert with the shop name (used in lists that mix shops). */
 export interface AlertWithShop extends Alert {
   shopName: string;
+}
+
+export type PaymentStatus = 'success' | 'failed';
+
+/** A fake payment. QRGuard never touches real money. */
+export interface Payment {
+  id: string;
+  shopId: string;
+  merchantId: string;
+  /** Whole rupees (LKR). */
+  amount: number;
+  customerRef: string;
+  status: PaymentStatus;
+  createdAt: string;
+}
+
+/** Payments per Sri Lanka hour: today, and the normal level (average of the last 7 days). */
+export interface PaymentSummary {
+  today: { count: number; total: number };
+  hourly: { hour: number; count: number; typical: number }[];
+}
+
+/** Short-lived ticket for the live (Socket.io) connection. */
+export interface RealtimeTicket {
+  ticket: string;
+  /** Where the browser should connect. */
+  url: string;
+}
+
+/** Events sent from the API to the browser. */
+export interface RealtimeEvents {
+  alert: (alert: AlertWithShop) => void;
+  payment: (payment: Payment) => void;
 }

@@ -51,4 +51,5 @@ export class ScanResponseDto implements ScanResponse {
   @ApiProperty({ type: ShopSummaryDto, nullable: true }) shop: ShopSummaryDto | null;
   @ApiProperty({ type: ShopSummaryDto, nullable: true }) expectedShop: ShopSummaryDto | null;
   @ApiProperty({ type: String, nullable: true }) qrMerchantName: string | null;
+  @ApiProperty({ type: String, nullable: true }) merchantId: string | null;
 }

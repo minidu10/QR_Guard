@@ -1,6 +1,6 @@
 'use server';
 
-import type { NearbyShop, ScanResponse } from '@qrguard/types';
+import type { NearbyShop, Payment, ScanResponse } from '@qrguard/types';
 import { z } from 'zod';
 import { ApiError, apiFetch } from '@/lib/api';
 import { getAccessToken } from '@/lib/session';
@@ -44,5 +44,28 @@ export async function nearbyShopsAction(lat: number, lng: number): Promise<Nearb
     return await apiFetch<NearbyShop[]>(`/shops/nearby?lat=${lat}&lng=${lng}&radius=300`);
   } catch {
     return [];
+  }
+}
+
+const paySchema = z.object({
+  merchantId: z.string().regex(/^[A-Za-z0-9.-]{1,32}$/),
+  amount: z.number().int().min(10).max(100000),
+});
+
+/** Fake payment to the scanned merchant (demo only). */
+export async function payAction(
+  merchantId: string,
+  amount: number,
+): Promise<{ ok: true; payment: Payment } | { ok: false; error: string }> {
+  const parsed = paySchema.safeParse({ merchantId, amount });
+  if (!parsed.success) return { ok: false, error: 'Enter a valid amount.' };
+  try {
+    const payment = await apiFetch<Payment>('/payments', {
+      method: 'POST',
+      body: JSON.stringify(parsed.data),
+    });
+    return { ok: true, payment };
+  } catch (err) {
+    return { ok: false, error: err instanceof ApiError ? err.message : 'Payment failed.' };
   }
 }

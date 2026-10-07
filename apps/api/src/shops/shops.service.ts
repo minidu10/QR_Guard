@@ -20,6 +20,14 @@ export class ShopsService {
     });
   }
 
+  /** Owners: their own shops. Admins: every shop. */
+  listManaged(user: AuthUser): Promise<Shop[]> {
+    return this.prisma.shop.findMany({
+      where: user.role === 'admin' ? {} : { ownerId: user.id },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async findById(id: string): Promise<Shop> {
     const shop = await this.prisma.shop.findUnique({ where: { id } });
     if (!shop) throw new NotFoundException('Shop not found');
