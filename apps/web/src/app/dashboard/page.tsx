@@ -5,6 +5,7 @@ import type {
   PhotoCheck,
   QrCodeListItem,
   Shop,
+  ShopRisk,
 } from '@qrguard/types';
 import { BadgeCheck, Plus } from 'lucide-react';
 import type { Metadata } from 'next';
@@ -12,6 +13,8 @@ import Link from 'next/link';
 import { AppHeader } from '@/components/app-header';
 import { PhotoCheckCard } from '@/components/dashboard/photo-check-card';
 import { QrCard } from '@/components/dashboard/qr-card';
+import { RiskCard } from '@/components/dashboard/risk-card';
+import { RiskBadge } from '@/components/risk-badge';
 import { ShopLive } from '@/components/dashboard/shop-live';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
@@ -49,12 +52,13 @@ export default async function DashboardPage({
   }
 
   const shop = shops.find((s) => s.id === wanted) ?? shops[0];
-  const [alerts, payments, summary, qrCodes, photoChecks] = await Promise.all([
+  const [alerts, payments, summary, qrCodes, photoChecks, risk] = await Promise.all([
     authedFetch<Alert[]>(`/shops/${shop.id}/alerts?limit=20`),
     authedFetch<Payment[]>(`/shops/${shop.id}/payments?limit=10`),
     authedFetch<PaymentSummary>(`/shops/${shop.id}/payments/summary`),
     authedFetch<QrCodeListItem[]>(`/shops/${shop.id}/qrcodes`),
     authedFetch<PhotoCheck[]>(`/shops/${shop.id}/photo-checks?limit=5`),
+    authedFetch<ShopRisk>(`/shops/${shop.id}/risk`),
   ]);
 
   return (
@@ -109,8 +113,18 @@ export default async function DashboardPage({
             initialAlerts={alerts}
             initialPayments={payments}
             initialSummary={summary}
+            extraStat={
+              <div className="rounded-xl border bg-card p-4">
+                <p className="text-sm text-muted-foreground">Risk score</p>
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-2xl font-semibold">
+                  {risk.score}
+                  <RiskBadge score={risk.score} className="text-[11px]" />
+                </p>
+              </div>
+            }
           />
           <aside className="grid gap-4">
+            <RiskCard risk={risk} />
             <PhotoCheckCard key={shop.id} shopId={shop.id} initialChecks={photoChecks} />
             <QrCard shop={shop} qrCodes={qrCodes} />
           </aside>

@@ -183,3 +183,46 @@ export interface PaymentDropCheck {
   /** The new alert, if the check made one. */
   alert: AlertWithShop | null;
 }
+
+export type RiskLevel = 'low' | 'medium' | 'high';
+
+/** One reason for a shop's risk score. */
+export interface RiskFactor {
+  label: string;
+  points: number;
+}
+
+/** Risk score 0 (safe) to 100 (high risk), with the reasons (biggest first). */
+export interface ShopRisk {
+  shopId: string;
+  score: number;
+  level: RiskLevel;
+  factors: RiskFactor[];
+  updatedAt: string;
+}
+
+export type ReportStatus = 'open' | 'reviewing' | 'resolved' | 'dismissed';
+
+/** A customer's report of a suspicious QR code. */
+export interface Report {
+  id: string;
+  shopId: string | null;
+  shopName: string | null;
+  scanId: string | null;
+  merchantId: string | null;
+  description: string;
+  status: ReportStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Numbers for the bank team's admin page. */
+export interface AdminOverview {
+  shops: number;
+  verifiedShops: number;
+  highRiskShops: number;
+  scansToday: number;
+  warningsToday: number;
+  alertsToday: number;
+  openReports: number;
+}

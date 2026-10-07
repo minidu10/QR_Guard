@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { AdminModule } from './admin/admin.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { AuthModule } from './auth/auth.module';
 import { DemoModule } from './demo/demo.module';
@@ -14,6 +15,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { QrCodesModule } from './qrcodes/qrcodes.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { RedisModule } from './redis/redis.module';
+import { ReportsModule } from './reports/reports.module';
+import { RiskModule } from './risk/risk.module';
 import { ScanModule } from './scan/scan.module';
 import { ShopsModule } from './shops/shops.module';
 import { StorageModule } from './storage/storage.module';
@@ -40,6 +43,9 @@ import { UsersModule } from './users/users.module';
     PaymentsModule,
     PhotoChecksModule,
     PaymentDropModule,
+    RiskModule,
+    ReportsModule,
+    AdminModule,
     DemoModule,
   ],
 })

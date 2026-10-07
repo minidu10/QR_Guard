@@ -4,6 +4,7 @@ import type { AuthUser } from '../auth/auth.types';
 import { Prisma, type Alert as AlertRow } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { RiskService } from '../risk/risk.service';
 import { ShopsService } from '../shops/shops.service';
 
 export interface NewAlert {
@@ -34,6 +35,7 @@ export class AlertsService {
     private readonly prisma: PrismaService,
     private readonly shops: ShopsService,
     private readonly realtime: RealtimeGateway,
+    private readonly risk: RiskService,
   ) {}
 
   /** Saves an alert and sends it live to the shop owner and admins. */
@@ -44,6 +46,7 @@ export class AlertsService {
     });
     const alert = { ...toAlert(row), shopName: shop.name };
     this.realtime.emitAlert(alert);
+    await this.risk.recompute(input.shopId);
     return alert;
   }
 
