@@ -1,28 +1,37 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { User, UserDocument } from './schemas/user.schema';
+import type { PublicUser } from '@qrguard/types';
+import type { Role, User } from '../generated/prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+
+/** User data that is safe to send to the browser (no password or token hashes). */
+export function toPublicUser(user: User): PublicUser {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone ?? undefined,
+    role: user.role,
+    createdAt: user.createdAt.toISOString(),
+  };
+}
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private readonly users: Model<User>) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  create(data: Pick<User, 'name' | 'email' | 'passwordHash' | 'role'> & { phone?: string }) {
-    return this.users.create(data);
+  create(data: { name: string; email: string; phone?: string; passwordHash: string; role: Role }) {
+    return this.prisma.user.create({ data: { ...data, email: data.email.toLowerCase() } });
   }
 
-  findByEmail(email: string): Promise<UserDocument | null> {
-    return this.users.findOne({ email: email.toLowerCase() }).exec();
+  findByEmail(email: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
   }
 
-  findById(id: string): Promise<UserDocument | null> {
-    return this.users.findById(id).exec();
+  findById(id: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { id } });
   }
 
   async setRefreshTokenHash(id: string, hash: string | null) {
-    await this.users.updateOne(
-      { _id: id },
-      hash ? { refreshTokenHash: hash } : { $unset: { refreshTokenHash: 1 } },
-    );
+    await this.prisma.user.update({ where: { id }, data: { refreshTokenHash: hash } });
   }
 }

@@ -1,5 +1,4 @@
-import { Body, Controller, Param, Patch, Post } from '@nestjs/common';
-import { ParseObjectIdPipe } from '@nestjs/mongoose';
+import { Body, Controller, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -8,7 +7,6 @@ import {
   ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { Types } from 'mongoose';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -28,7 +26,7 @@ export class QrCodesController {
   @ApiCreatedResponse({ type: GeneratedQrCodeDto, description: 'New QR code with its image.' })
   @ApiNotFoundResponse({ description: 'Shop not found.' })
   generate(
-    @Param('id', ParseObjectIdPipe) shopId: Types.ObjectId,
+    @Param('id', ParseUUIDPipe) shopId: string,
     @Body() dto: CreateQrCodeDto,
     @CurrentUser() user: AuthUser,
   ) {
@@ -38,7 +36,7 @@ export class QrCodesController {
   @Patch('qrcodes/:id/revoke')
   @ApiOkResponse({ type: QrCodeDto, description: 'The QR code, now revoked.' })
   @ApiNotFoundResponse({ description: 'QR code not found.' })
-  revoke(@Param('id', ParseObjectIdPipe) id: Types.ObjectId, @CurrentUser() user: AuthUser) {
+  revoke(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.qrcodes.revoke(id, user);
   }
 }

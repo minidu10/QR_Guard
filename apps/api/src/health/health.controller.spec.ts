@@ -10,7 +10,7 @@ function setup(result: HealthResponse) {
   return { controller: new HealthController(service), res };
 }
 
-const services = { mongo: 'up', redis: 'up', storage: 'up', ai: 'up' } as const;
+const services = { database: 'up', redis: 'up', storage: 'up', ai: 'up' } as const;
 
 describe('HealthController', () => {
   it('returns 200 when all services are up', async () => {

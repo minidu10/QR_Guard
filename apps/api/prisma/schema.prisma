@@ -1,0 +1,103 @@
+// QRGuard database schema (PostgreSQL / Supabase).
+// After changing this file run: pnpm --filter api db:migrate
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  customer
+  owner
+  admin
+}
+
+enum QrStatus {
+  active
+  revoked
+}
+
+enum PaymentStatus {
+  success
+  failed
+}
+
+model User {
+  id               String   @id @default(uuid()) @db.Uuid
+  name             String
+  email            String   @unique
+  phone            String?
+  passwordHash     String   @map("password_hash")
+  role             Role     @default(customer)
+  // SHA-256 of the latest refresh token. Replaced on every refresh.
+  refreshTokenHash String?  @map("refresh_token_hash")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  shops Shop[]
+
+  @@map("users")
+}
+
+model Shop {
+  id        String                                 @id @default(uuid()) @db.Uuid
+  name      String
+  ownerId   String                                 @map("owner_id") @db.Uuid
+  address   String
+  lat       Float
+  lng       Float
+  // PostGIS point made from lat/lng by the database (generated column).
+  // Used for fast "shops near me" searches. Never written by the app.
+  location  Unsupported("geography(Point, 4326)")? @default(dbgenerated("(st_setsrid(st_makepoint(lng, lat), 4326))::geography"))
+  // Set by the bank / admin team after checking the shop.
+  verified  Boolean                                @default(false)
+  // 0 (safe) to 100 (high risk). Calculated by the risk module (Phase 7).
+  riskScore Int                                    @default(0) @map("risk_score")
+  createdAt DateTime                               @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  owner    User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  qrCodes  QrCode[]
+  payments Payment[]
+
+  @@index([ownerId])
+  @@index([location], type: Gist)
+  @@map("shops")
+}
+
+model QrCode {
+  id         String    @id @default(uuid()) @db.Uuid
+  shopId     String    @map("shop_id") @db.Uuid
+  merchantId String    @unique @map("merchant_id")
+  // The exact text inside the QR image.
+  qrPayload  String    @map("qr_payload")
+  status     QrStatus  @default(active)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@map("qr_codes")
+}
+
+// A fake payment. QRGuard never touches real money.
+model Payment {
+  id          String        @id @default(uuid()) @db.Uuid
+  shopId      String        @map("shop_id") @db.Uuid
+  merchantId  String        @map("merchant_id")
+  // Whole rupees (LKR).
+  amount      Int
+  // Fake customer reference, e.g. "CUST-0042".
+  customerRef String        @map("customer_ref")
+  status      PaymentStatus @default(success)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, createdAt(sort: Desc)])
+  @@map("payments")
+}

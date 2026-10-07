@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 const SERVICE_NAMES: Record<string, string> = {
   api: 'API',
-  mongo: 'Database (MongoDB)',
+  database: 'Database (PostgreSQL)',
   redis: 'Cache / queue (Redis)',
   storage: 'File storage (MinIO / S3)',
   ai: 'AI service',

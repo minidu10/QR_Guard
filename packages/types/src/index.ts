@@ -33,18 +33,13 @@ export interface AuthResponse {
   user: PublicUser;
 }
 
-/** GeoJSON point. Coordinates are [longitude, latitude]. */
-export interface GeoPoint {
-  type: 'Point';
-  coordinates: [number, number];
-}
-
 export interface Shop {
   id: string;
   name: string;
   ownerId: string;
   address: string;
-  location: GeoPoint;
+  lat: number;
+  lng: number;
   verified: boolean;
   riskScore: number;
   createdAt: string;
@@ -63,6 +58,7 @@ export interface QrCode {
   merchantId: string;
   qrPayload: string;
   status: QrCodeStatus;
+  revokedAt: string | null;
   createdAt: string;
 }
 

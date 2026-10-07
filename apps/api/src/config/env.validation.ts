@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  Matches,
   Max,
   Min,
   MinLength,
@@ -25,8 +26,10 @@ class EnvVars {
   @IsString()
   CORS_ORIGIN: string = 'http://localhost:3000';
 
+  // PostgreSQL connection string (local Docker or Supabase).
   @IsString()
-  MONGODB_URI: string;
+  @Matches(/^postgres(ql)?:\/\//, { message: 'DATABASE_URL must start with postgresql://' })
+  DATABASE_URL: string;
 
   @IsString()
   REDIS_URL: string;

@@ -10,7 +10,7 @@ export class HealthResponseDto implements HealthResponse {
   timestamp: string;
 
   @ApiProperty({
-    example: { mongo: 'up', redis: 'up', storage: 'up', ai: 'up' },
+    example: { database: 'up', redis: 'up', storage: 'up', ai: 'up' },
     additionalProperties: { type: 'string', enum: ['up', 'down'] },
   })
   services: Record<string, ServiceStatus>;

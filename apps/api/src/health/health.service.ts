@@ -1,11 +1,10 @@
 import { HeadBucketCommand, S3Client } from '@aws-sdk/client-s3';
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectConnection } from '@nestjs/mongoose';
 import type { HealthResponse, ServiceStatus } from '@qrguard/types';
 import Redis from 'ioredis';
-import { Connection } from 'mongoose';
 import { Env } from '../config/env.validation';
+import { PrismaService } from '../prisma/prisma.service';
 
 const TIMEOUT_MS = 2000;
 
@@ -17,7 +16,7 @@ export class HealthService implements OnModuleDestroy {
   private readonly s3: S3Client;
 
   constructor(
-    @InjectConnection() private readonly mongo: Connection,
+    private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
   ) {
     this.redis = new Redis(config.get('REDIS_URL', { infer: true }), {
@@ -36,13 +35,13 @@ export class HealthService implements OnModuleDestroy {
   }
 
   async check(): Promise<HealthResponse> {
-    const [mongo, redis, storage, ai] = await Promise.all([
-      this.run('mongo', () => this.checkMongo()),
+    const [database, redis, storage, ai] = await Promise.all([
+      this.run('database', () => this.checkDatabase()),
       this.run('redis', () => this.checkRedis()),
       this.run('storage', () => this.checkStorage()),
       this.run('ai', () => this.checkAi()),
     ]);
-    const services = { mongo, redis, storage, ai };
+    const services = { database, redis, storage, ai };
     const allUp = Object.values(services).every((s) => s === 'up');
     return { status: allUp ? 'ok' : 'error', timestamp: new Date().toISOString(), services };
   }
@@ -69,9 +68,8 @@ export class HealthService implements OnModuleDestroy {
     }
   }
 
-  private async checkMongo() {
-    if (!this.mongo.db) throw new Error('not connected');
-    await this.mongo.db.admin().ping();
+  private async checkDatabase() {
+    await this.prisma.$queryRaw`SELECT 1`;
   }
 
   private async checkRedis() {

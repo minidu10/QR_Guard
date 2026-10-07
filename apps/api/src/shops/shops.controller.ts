@@ -1,5 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { ParseObjectIdPipe } from '@nestjs/mongoose';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -8,7 +7,6 @@ import {
   ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { Types } from 'mongoose';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -47,7 +45,7 @@ export class ShopsController {
   @Public()
   @ApiOkResponse({ type: ShopDto })
   @ApiNotFoundResponse({ description: 'Shop not found.' })
-  findOne(@Param('id', ParseObjectIdPipe) id: Types.ObjectId) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.shops.findById(id);
   }
 }

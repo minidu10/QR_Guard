@@ -3,13 +3,18 @@
 name: qrguard
 
 services:
-  mongo:
-    image: mongo:7
+  # Local PostgreSQL with PostGIS. Same engine as Supabase, so the code works on both.
+  postgres:
+    image: postgis/postgis:17-3.5-alpine
     restart: unless-stopped
-    ports: ['27017:27017']
-    volumes: [mongo-data:/data/db]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-qrguard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-qrguard-dev-password}
+      POSTGRES_DB: qrguard
+    ports: ['5432:5432']
+    volumes: [postgres-data:/var/lib/postgresql/data]
     healthcheck:
-      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d qrguard']
       interval: 10s
       timeout: 5s
       retries: 10
@@ -71,7 +76,9 @@ services:
       NODE_ENV: production
       PORT: 4000
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      MONGODB_URI: mongodb://mongo:27017/qrguard
+      # Local database by default. To use Supabase, set DATABASE_URL in infra/.env.
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-qrguard}:${POSTGRES_PASSWORD:-qrguard-dev-password}@postgres:5432/qrguard}
+      DIRECT_URL: ${DIRECT_URL:-}
       REDIS_URL: redis://redis:6379
       S3_ENDPOINT: http://minio:9000
       S3_REGION: us-east-1
@@ -88,7 +95,7 @@ services:
       SEED_PASSWORD: ${SEED_PASSWORD:-}
     ports: ['4000:4000']
     depends_on:
-      mongo: { condition: service_healthy }
+      postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       minio-init: { condition: service_completed_successfully }
       ai-service: { condition: service_healthy }
@@ -107,6 +114,6 @@ services:
       api: { condition: service_healthy }
 
 volumes:
-  mongo-data:
+  postgres-data:
   redis-data:
   minio-data:

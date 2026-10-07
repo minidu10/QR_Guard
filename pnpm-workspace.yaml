@@ -5,6 +5,8 @@ packages:
 
 # Allow these packages to run their install scripts.
 onlyBuiltDependencies:
+  - '@prisma/engines'
   - '@tailwindcss/oxide'
+  - 'prisma'
   - 'sharp'
   - 'unrs-resolver'

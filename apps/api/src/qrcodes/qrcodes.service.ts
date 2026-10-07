@@ -1,14 +1,13 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import type { GeneratedQrCode, QrCode } from '@qrguard/types';
+import type { GeneratedQrCode } from '@qrguard/types';
 import { randomInt } from 'node:crypto';
-import { Model, Types } from 'mongoose';
 import * as QRCodeImage from 'qrcode';
 import type { AuthUser } from '../auth/auth.types';
-import { ShopDocument } from '../shops/schemas/shop.schema';
+import type { QrCode, Shop } from '../generated/prisma/client';
+import { isUniqueViolation } from '../prisma/errors';
+import { PrismaService } from '../prisma/prisma.service';
 import { ShopsService } from '../shops/shops.service';
 import { buildMerchantQr } from './emv';
-import { QRCode, QRCodeDocument } from './schemas/qrcode.schema';
 
 /** Random merchant id like "QRG482019376". */
 export function newMerchantId(): string {
@@ -25,25 +24,25 @@ export function cityFromAddress(address: string): string {
 @Injectable()
 export class QrCodesService {
   constructor(
-    @InjectModel(QRCode.name) private readonly qrcodes: Model<QRCode>,
+    private readonly prisma: PrismaService,
     private readonly shops: ShopsService,
   ) {}
 
-  async generate(shopId: Types.ObjectId, user: AuthUser, rotate = false): Promise<GeneratedQrCode> {
+  async generate(shopId: string, user: AuthUser, rotate = false): Promise<GeneratedQrCode> {
     const shop = await this.shops.findById(shopId);
     this.shops.assertCanManage(shop, user);
     if (rotate) {
-      await this.qrcodes.updateMany(
-        { shopId: shop._id, status: 'active' },
-        { status: 'revoked', revokedAt: new Date() },
-      );
+      await this.prisma.qrCode.updateMany({
+        where: { shopId: shop.id, status: 'active' },
+        data: { status: 'revoked', revokedAt: new Date() },
+      });
     }
     const qr = await this.createForShop(shop);
     return this.withImage(qr);
   }
 
   // Also used by the seed script.
-  async createForShop(shop: ShopDocument): Promise<QRCodeDocument> {
+  async createForShop(shop: Pick<Shop, 'id' | 'name' | 'address'>): Promise<QrCode> {
     // Ids are random, so a clash is very rare. Try a few times just in case.
     for (let attempt = 0; attempt < 5; attempt++) {
       const merchantId = newMerchantId();
@@ -53,31 +52,38 @@ export class QrCodesService {
         merchantCity: cityFromAddress(shop.address),
       });
       try {
-        return await this.qrcodes.create({ shopId: shop._id, merchantId, qrPayload });
+        return await this.prisma.qrCode.create({
+          data: { shopId: shop.id, merchantId, qrPayload },
+        });
       } catch (err) {
-        if ((err as { code?: number }).code !== 11000) throw err; // 11000 = duplicate key
+        if (!isUniqueViolation(err)) throw err;
       }
     }
     throw new ConflictException('Could not create a unique merchant id. Please try again.');
   }
 
-  async revoke(id: Types.ObjectId, user: AuthUser): Promise<QrCode> {
-    const qr = await this.qrcodes.findById(id).exec();
+  async revoke(id: string, user: AuthUser): Promise<QrCode> {
+    const qr = await this.prisma.qrCode.findUnique({ where: { id }, include: { shop: true } });
     if (!qr) throw new NotFoundException('QR code not found');
-    this.shops.assertCanManage(await this.shops.findById(qr.shopId), user);
-    if (qr.status !== 'revoked') {
-      qr.status = 'revoked';
-      qr.revokedAt = new Date();
-      await qr.save();
-    }
-    return qr.toJSON() as unknown as QrCode;
+    const { shop, ...code } = qr;
+    this.shops.assertCanManage(shop, user);
+    if (code.status === 'revoked') return code;
+    return this.prisma.qrCode.update({
+      where: { id },
+      data: { status: 'revoked', revokedAt: new Date() },
+    });
   }
 
-  private async withImage(qr: QRCodeDocument): Promise<GeneratedQrCode> {
+  private async withImage(qr: QrCode): Promise<GeneratedQrCode> {
     const qrImage = await QRCodeImage.toDataURL(qr.qrPayload, {
       errorCorrectionLevel: 'M',
       width: 512,
     });
-    return { ...(qr.toJSON() as unknown as QrCode), qrImage };
+    return {
+      ...qr,
+      createdAt: qr.createdAt.toISOString(),
+      revokedAt: qr.revokedAt?.toISOString() ?? null,
+      qrImage,
+    };
   }
 }

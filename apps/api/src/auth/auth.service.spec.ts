@@ -1,25 +1,19 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Types } from 'mongoose';
+import { randomUUID } from 'node:crypto';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 
 // A tiny in-memory "database" that behaves like UsersService.
 function fakeUsers() {
   const rows = new Map<string, Record<string, unknown>>();
-  const asDoc = (row: Record<string, unknown>) => ({
-    ...row,
-    toJSON: () => {
-      const { passwordHash: _p, refreshTokenHash: _r, ...rest } = row;
-      return rest;
-    },
-  });
+  const asDoc = (row: Record<string, unknown>) => ({ ...row });
   return {
     rows,
     create: jest.fn(async (data: Record<string, unknown>) => {
-      const id = new Types.ObjectId().toString();
-      rows.set(id, { ...data, id });
+      const id = randomUUID();
+      rows.set(id, { ...data, id, createdAt: new Date(), refreshTokenHash: null });
       return asDoc(rows.get(id)!);
     }),
     findByEmail: jest.fn(async (email: string) => {
@@ -29,8 +23,7 @@ function fakeUsers() {
     findById: jest.fn(async (id: string) => (rows.has(id) ? asDoc(rows.get(id)!) : null)),
     setRefreshTokenHash: jest.fn(async (id: string, hash: string | null) => {
       const row = rows.get(id)!;
-      if (hash) row.refreshTokenHash = hash;
-      else delete row.refreshTokenHash;
+      row.refreshTokenHash = hash;
     }),
   };
 }
@@ -65,6 +58,7 @@ describe('AuthService', () => {
     const stored = [...users.rows.values()][0];
     expect(stored.passwordHash).not.toBe(newUser.password);
     expect(res.user).not.toHaveProperty('passwordHash');
+    expect(res.user).not.toHaveProperty('refreshTokenHash');
     const payload = await jwt.verifyAsync(res.accessToken, {
       secret: env.JWT_ACCESS_SECRET as string,
     });

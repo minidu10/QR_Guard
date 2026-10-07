@@ -1,16 +1,11 @@
 // Fills the database with demo data. It DELETES existing users, shops, QR codes and payments.
 // Run: pnpm --filter api seed   (or in Docker: docker compose exec api node dist/seed/run.js)
 import { NestFactory } from '@nestjs/core';
-import { getModelToken } from '@nestjs/mongoose';
-import type { Role } from '@qrguard/types';
 import * as bcrypt from 'bcryptjs';
-import { Model } from 'mongoose';
 import { AppModule } from '../app.module';
-import { Payment } from '../payments/schemas/payment.schema';
+import type { Role } from '../generated/prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 import { QrCodesService } from '../qrcodes/qrcodes.service';
-import { QRCode } from '../qrcodes/schemas/qrcode.schema';
-import { Shop } from '../shops/schemas/shop.schema';
-import { User } from '../users/schemas/user.schema';
 import { fakePayments, makeRandom } from './payments';
 
 const DAYS = 14;
@@ -110,29 +105,20 @@ async function main() {
 
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
   try {
-    const users = app.get<Model<User>>(getModelToken(User.name));
-    const shops = app.get<Model<Shop>>(getModelToken(Shop.name));
-    const qrcodes = app.get<Model<QRCode>>(getModelToken(QRCode.name));
-    const payments = app.get<Model<Payment>>(getModelToken(Payment.name));
+    const prisma = app.get(PrismaService);
     const qrService = app.get(QrCodesService);
 
-    // Make sure indexes (unique email, 2dsphere, ...) exist, then clear old data.
-    const models = [users, shops, qrcodes, payments] as unknown as Model<unknown>[];
-    await Promise.all(models.map((m) => m.syncIndexes()));
-    await Promise.all(models.map((m) => m.deleteMany({})));
+    // Removing users also removes their shops, QR codes and payments (ON DELETE CASCADE).
+    await prisma.user.deleteMany();
     log('Cleared old data');
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const userIds: Record<string, unknown> = {};
+    const userIds: Record<string, string> = {};
     for (const u of USERS) {
-      const doc = await users.create({
-        name: u.name,
-        email: u.email,
-        phone: u.phone,
-        role: u.role,
-        passwordHash,
+      const user = await prisma.user.create({
+        data: { name: u.name, email: u.email, phone: u.phone, role: u.role, passwordHash },
       });
-      userIds[u.key] = doc._id;
+      userIds[u.key] = user.id;
     }
     log(`Created ${USERS.length} users`);
 
@@ -141,27 +127,33 @@ async function main() {
     let paymentCount = 0;
 
     for (const s of SHOPS) {
-      const shop = await shops.create({
-        name: s.name,
-        address: s.address,
-        ownerId: userIds[s.owner],
-        location: { type: 'Point', coordinates: [s.lng, s.lat] },
-        verified: s.verified,
+      const shop = await prisma.shop.create({
+        data: {
+          name: s.name,
+          address: s.address,
+          lat: s.lat,
+          lng: s.lng,
+          verified: s.verified,
+          ownerId: userIds[s.owner],
+        },
       });
       const qr = await qrService.createForShop(shop);
 
       const list = fakePayments({ days: DAYS, perHour: s.perHour, now, random });
-      await payments.insertMany(
-        list.map((p) => ({ ...p, shopId: shop._id, merchantId: qr.merchantId })),
-      );
+      await prisma.payment.createMany({
+        data: list.map((p) => ({ ...p, shopId: shop.id, merchantId: qr.merchantId })),
+      });
       paymentCount += list.length;
       log(`${s.name}: merchant ${qr.merchantId}, ${list.length} payments`);
     }
 
     // One old, revoked QR code, so the "revoked" case can be shown.
-    const silva = await shops.findOne({ name: 'Silva Hardware' }).orFail();
+    const silva = await prisma.shop.findFirstOrThrow({ where: { name: 'Silva Hardware' } });
     const old = await qrService.createForShop(silva);
-    await qrcodes.updateOne({ _id: old._id }, { status: 'revoked', revokedAt: now });
+    await prisma.qrCode.update({
+      where: { id: old.id },
+      data: { status: 'revoked', revokedAt: now },
+    });
 
     log(`Done: ${SHOPS.length} shops, ${paymentCount} payments over ${DAYS} days`);
     log(`Demo logins: ${USERS.map((u) => u.email).join(', ')} (password = SEED_PASSWORD)`);

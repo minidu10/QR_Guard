@@ -4,3 +4,4 @@ dist
 .next
 .turbo
 coverage
+apps/api/src/generated

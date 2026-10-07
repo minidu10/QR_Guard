@@ -3,7 +3,7 @@ import { Transform } from 'class-transformer';
 import {
   IsLatitude,
   IsLongitude,
-  IsMongoId,
+  IsUUID,
   IsOptional,
   IsString,
   Length,
@@ -41,6 +41,6 @@ export class CreateShopDto {
 
   @ApiPropertyOptional({ description: 'Admin only: create the shop for this owner.' })
   @IsOptional()
-  @IsMongoId()
+  @IsUUID()
   ownerId?: string;
 }

@@ -1,61 +1,48 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
 import type { NearbyShop } from '@qrguard/types';
-import { Model, Types } from 'mongoose';
 import type { AuthUser } from '../auth/auth.types';
+import type { Shop } from '../generated/prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateShopDto } from './dto/create-shop.dto';
 import { NearbyQueryDto } from './dto/nearby-query.dto';
-import { Shop, ShopDocument } from './schemas/shop.schema';
 
 const NEARBY_LIMIT = 20;
 
 @Injectable()
 export class ShopsService {
-  constructor(@InjectModel(Shop.name) private readonly shops: Model<Shop>) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  create(dto: CreateShopDto, user: AuthUser): Promise<ShopDocument> {
+  create(dto: CreateShopDto, user: AuthUser): Promise<Shop> {
     // Owners always create shops for themselves. Admins may pick the owner.
     const ownerId = user.role === 'admin' && dto.ownerId ? dto.ownerId : user.id;
-    return this.shops.create({
-      name: dto.name,
-      address: dto.address,
-      ownerId: new Types.ObjectId(ownerId),
-      location: { type: 'Point', coordinates: [dto.lng, dto.lat] },
+    return this.prisma.shop.create({
+      data: { name: dto.name, address: dto.address, lat: dto.lat, lng: dto.lng, ownerId },
     });
   }
 
-  async findById(id: Types.ObjectId | string): Promise<ShopDocument> {
-    const shop = await this.shops.findById(id).exec();
+  async findById(id: string): Promise<Shop> {
+    const shop = await this.prisma.shop.findUnique({ where: { id } });
     if (!shop) throw new NotFoundException('Shop not found');
     return shop;
   }
 
-  // Shops within `radius` metres, closest first.
-  async findNearby({ lat, lng, radius }: NearbyQueryDto): Promise<NearbyShop[]> {
-    const rows = await this.shops.aggregate<Shop & { _id: Types.ObjectId; distanceMeters: number }>(
-      [
-        {
-          $geoNear: {
-            near: { type: 'Point', coordinates: [lng, lat] },
-            distanceField: 'distanceMeters',
-            maxDistance: radius,
-            spherical: true,
-          },
-        },
-        { $limit: NEARBY_LIMIT },
-      ],
-    );
-    // Aggregation returns plain objects, so turn them into the same JSON as findById.
-    return rows.map((row) => ({
-      ...(this.shops.hydrate(row).toJSON() as unknown as NearbyShop),
-      distanceMeters: Math.round(row.distanceMeters),
-    }));
+  // Shops within `radius` metres, closest first. Uses the PostGIS "location" column.
+  findNearby({ lat, lng, radius }: NearbyQueryDto): Promise<NearbyShop[]> {
+    return this.prisma.$queryRaw<NearbyShop[]>`
+      SELECT id, name, owner_id AS "ownerId", address, lat, lng, verified,
+             risk_score AS "riskScore", created_at AS "createdAt",
+             ROUND(ST_Distance(location, point.geo))::int AS "distanceMeters"
+      FROM shops,
+           (SELECT ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography AS geo) AS point
+      WHERE ST_DWithin(location, point.geo, ${radius})
+      ORDER BY location <-> point.geo
+      LIMIT ${NEARBY_LIMIT}`;
   }
 
   // Only the shop's owner or an admin may change a shop or its QR codes.
-  assertCanManage(shop: ShopDocument, user: AuthUser) {
+  assertCanManage(shop: Pick<Shop, 'ownerId'>, user: AuthUser) {
     if (user.role === 'admin') return;
-    if (user.role === 'owner' && shop.ownerId.equals(user.id)) return;
+    if (user.role === 'owner' && shop.ownerId === user.id) return;
     throw new ForbiddenException('You can only manage your own shops');
   }
 }

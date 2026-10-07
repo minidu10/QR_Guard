@@ -1,12 +1,12 @@
 import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import type { AuthResponse, PublicUser } from '@qrguard/types';
+import type { AuthResponse } from '@qrguard/types';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { Env } from '../config/env.validation';
-import { UserDocument } from '../users/schemas/user.schema';
-import { UsersService } from '../users/users.service';
+import type { User } from '../generated/prisma/client';
+import { toPublicUser, UsersService } from '../users/users.service';
 import type { JwtPayload } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -75,7 +75,7 @@ export class AuthService {
     return this.issueTokens(user);
   }
 
-  private async issueTokens(user: UserDocument): Promise<AuthResponse> {
+  private async issueTokens(user: User): Promise<AuthResponse> {
     const payload: JwtPayload = { sub: user.id, role: user.role };
     const [accessToken, refreshToken] = await Promise.all([
       this.jwt.signAsync(payload, {
@@ -90,6 +90,6 @@ export class AuthService {
       }),
     ]);
     await this.users.setRefreshTokenHash(user.id, hashToken(refreshToken));
-    return { accessToken, refreshToken, user: user.toJSON() as unknown as PublicUser };
+    return { accessToken, refreshToken, user: toPublicUser(user) };
   }
 }

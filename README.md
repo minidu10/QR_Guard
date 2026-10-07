@@ -54,6 +54,32 @@ It only creates the storage bucket, then stops.
 > Note: MinIO no longer publishes official Docker images. We use `pgsty/minio`, a maintained
 > community build of the same server.
 
+## Database (PostgreSQL / Supabase)
+
+QRGuard uses **PostgreSQL** with **Prisma**. Location searches use **PostGIS**.
+
+- **Local (default):** Docker runs a PostgreSQL + PostGIS database. Nothing to set up.
+- **Supabase:** Supabase is PostgreSQL, so the same code works. Put your connection string in
+  `infra/.env` (or `apps/api/.env` without Docker):
+
+  ```env
+  DATABASE_URL=postgresql://postgres:YOUR-PASSWORD@db.YOUR-PROJECT.supabase.co:5432/postgres?sslmode=require&uselibpqcompat=true
+  ```
+
+  If your network has no IPv6, use the **Session pooler** string instead
+  (Supabase dashboard → **Connect** → Session pooler).
+
+The API applies database migrations itself every time it starts (`prisma migrate deploy`),
+so the tables are created on Supabase the first time you run it.
+
+Change the database schema:
+
+```bash
+# 1. edit apps/api/prisma/schema.prisma
+# 2. make and apply a migration (needs a running local database):
+pnpm --filter api db:migrate
+```
+
 ## Demo data
 
 Fill the database with 4 demo users, 5 shops (Colombo, Kandy, Galle, Nugegoda, Pettah),
@@ -81,7 +107,7 @@ You need Node.js 22+, pnpm 10 and Python 3.12+.
 Start only the databases with Docker:
 
 ```bash
-cd infra && docker compose up -d mongo redis minio minio-init ai-service
+cd infra && docker compose up -d postgres redis minio minio-init ai-service
 ```
 
 Then, from the repo root:
@@ -91,6 +117,7 @@ pnpm install
 cp apps/api/.env.example apps/api/.env          # use the same MinIO user/password as infra/.env
 cp apps/web/.env.example apps/web/.env.local
 pnpm dev                                        # runs web (3000) and api (4000)
+pnpm --filter api db:deploy                     # create the database tables
 pnpm --filter api seed                          # demo data (uses apps/api/.env)
 ```
 
@@ -116,7 +143,7 @@ cd apps/ai-service && pytest && ruff check .
 
 ## Health check
 
-`GET /api/v1/health` checks MongoDB, Redis, file storage and the AI service.
+`GET /api/v1/health` checks the database, Redis, file storage and the AI service.
 It returns `200` when all are up, and `503` if one is down.
 
 ## API so far
