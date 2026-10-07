@@ -167,3 +167,19 @@ export interface PhotoCheck {
   modelMode: 'mock' | 'real';
   createdAt: string;
 }
+
+/** Payment drop check for one shop: last 60 minutes vs the same time on other days. */
+export interface PaymentDropResult {
+  drop: boolean;
+  current: number;
+  normal: number;
+  ratio: number | null;
+  reason: 'DROP' | 'OK' | 'TOO_FEW';
+}
+
+export interface PaymentDropCheck {
+  shopId: string;
+  result: PaymentDropResult;
+  /** The new alert, if the check made one. */
+  alert: AlertWithShop | null;
+}

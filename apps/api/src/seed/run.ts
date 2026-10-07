@@ -5,7 +5,9 @@ import * as bcrypt from 'bcryptjs';
 import { AppModule } from '../app.module';
 import type { Role } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { SIM_LAST_RUN_KEY } from '../payment-drop/payment-simulator.service';
 import { QrCodesService } from '../qrcodes/qrcodes.service';
+import { RedisService } from '../redis/redis.service';
 import { fakePayments, makeRandom } from './payments';
 
 const DAYS = 14;
@@ -103,6 +105,8 @@ async function main() {
     throw new Error('Set SEED_PASSWORD (at least 8 characters) for the demo users.');
   }
 
+  // No live fake payments while seeding.
+  process.env.PAYMENT_SIMULATOR = 'false';
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
   try {
     const prisma = app.get(PrismaService);
@@ -154,6 +158,9 @@ async function main() {
       where: { id: old.id },
       data: { status: 'revoked', revokedAt: now },
     });
+
+    // Fake payment history now ends "now". The live simulator continues from here.
+    await app.get(RedisService).set(SIM_LAST_RUN_KEY, String(now.getTime()));
 
     log(`Done: ${SHOPS.length} shops, ${paymentCount} payments over ${DAYS} days`);
     log(`Demo logins: ${USERS.map((u) => u.email).join(', ')} (password = SEED_PASSWORD)`);

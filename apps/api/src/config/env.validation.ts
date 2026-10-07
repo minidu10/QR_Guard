@@ -3,6 +3,7 @@ import {
   IsBooleanString,
   IsIn,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUrl,
@@ -73,6 +74,31 @@ class EnvVars {
   @IsInt()
   @Min(60)
   JWT_REFRESH_TTL_SECONDS: number = 604800; // 7 days
+
+  // Payment drop check: alert when the last hour < DROP_RATIO x normal,
+  // and normal is at least DROP_MIN_NORMAL payments. Normal = same hour over DROP_LOOKBACK_DAYS days.
+  // How often it runs is DROP_CHECK_CRON (cron syntax, default every 15 minutes).
+  @IsNumber()
+  @Min(0.05)
+  @Max(1)
+  DROP_RATIO: number = 0.4;
+
+  @IsInt()
+  @Min(1)
+  DROP_MIN_NORMAL: number = 5;
+
+  @IsInt()
+  @Min(1)
+  @Max(28)
+  DROP_LOOKBACK_DAYS: number = 7;
+
+  @IsOptional()
+  @IsString()
+  DROP_CHECK_CRON?: string;
+
+  // Demo only: keep fake payments coming in live. Never on with real data.
+  @IsBooleanString()
+  PAYMENT_SIMULATOR: string = 'false';
 }
 
 export type Env = EnvVars;

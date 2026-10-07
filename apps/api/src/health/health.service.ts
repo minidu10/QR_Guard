@@ -1,29 +1,24 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { HealthResponse, ServiceStatus } from '@qrguard/types';
-import Redis from 'ioredis';
 import { Env } from '../config/env.validation';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisService } from '../redis/redis.service';
 import { StorageService } from '../storage/storage.service';
 
 const TIMEOUT_MS = 2000;
 
 // Checks that every service the API depends on is reachable.
 @Injectable()
-export class HealthService implements OnModuleDestroy {
+export class HealthService {
   private readonly logger = new Logger(HealthService.name);
-  private readonly redis: Redis;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
     private readonly storage: StorageService,
-  ) {
-    this.redis = new Redis(config.get('REDIS_URL', { infer: true }), {
-      lazyConnect: true,
-      maxRetriesPerRequest: 1,
-    });
-  }
+    private readonly redis: RedisService,
+  ) {}
 
   async check(): Promise<HealthResponse> {
     const [database, redis, storage, ai] = await Promise.all([
@@ -35,10 +30,6 @@ export class HealthService implements OnModuleDestroy {
     const services = { database, redis, storage, ai };
     const allUp = Object.values(services).every((s) => s === 'up');
     return { status: allUp ? 'ok' : 'error', timestamp: new Date().toISOString(), services };
-  }
-
-  async onModuleDestroy() {
-    this.redis.disconnect();
   }
 
   // Runs one check with a timeout. Any error means "down".
@@ -63,7 +54,6 @@ export class HealthService implements OnModuleDestroy {
   }
 
   private async checkRedis() {
-    if (this.redis.status === 'wait') await this.redis.connect();
     await this.redis.ping();
   }
 

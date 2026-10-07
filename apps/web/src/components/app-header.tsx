@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 const LINKS: { href: string; label: string; roles: Role[] }[] = [
   { href: '/scan', label: 'Check QR', roles: ['customer', 'owner', 'admin'] },
   { href: '/dashboard', label: 'Dashboard', roles: ['owner', 'admin'] },
+  { href: '/demo', label: 'Demo', roles: ['admin'] },
 ];
 
 // Top bar for logged-in pages: logo, links for this role, and log out.
