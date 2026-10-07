@@ -67,6 +67,11 @@ export interface GeneratedQrCode extends QrCode {
   qrImage: string;
 }
 
+/** A QR code in a shop's list. Only active codes include the image. */
+export interface QrCodeListItem extends QrCode {
+  qrImage: string | null;
+}
+
 /** Why a scan is safe or not. */
 export type ScanReason =
   'OK' | 'NOT_PAYMENT_QR' | 'BAD_CHECKSUM' | 'UNKNOWN_MERCHANT' | 'REVOKED_QR' | 'WRONG_SHOP';
@@ -92,6 +97,8 @@ export interface ScanResponse {
   expectedShop: ShopSummary | null;
   /** Merchant name written inside the QR (a fake QR can copy the real name). */
   qrMerchantName: string | null;
+  /** Merchant id inside the QR (used to make a demo payment after a safe scan). */
+  merchantId: string | null;
 }
 
 export type AlertType = 'SCAN_MISMATCH' | 'TAMPER_DETECTED' | 'PAYMENT_DROP' | 'CUSTOMER_REPORT';
@@ -112,4 +119,110 @@ export interface Alert {
 /** An alert with the shop name (used in lists that mix shops). */
 export interface AlertWithShop extends Alert {
   shopName: string;
+}
+
+export type PaymentStatus = 'success' | 'failed';
+
+/** A fake payment. QRGuard never touches real money. */
+export interface Payment {
+  id: string;
+  shopId: string;
+  merchantId: string;
+  /** Whole rupees (LKR). */
+  amount: number;
+  customerRef: string;
+  status: PaymentStatus;
+  createdAt: string;
+}
+
+/** Payments per Sri Lanka hour: today, and the normal level (average of the last 7 days). */
+export interface PaymentSummary {
+  today: { count: number; total: number };
+  hourly: { hour: number; count: number; typical: number }[];
+}
+
+/** Short-lived ticket for the live (Socket.io) connection. */
+export interface RealtimeTicket {
+  ticket: string;
+  /** Where the browser should connect. */
+  url: string;
+}
+
+/** Events sent from the API to the browser. */
+export interface RealtimeEvents {
+  alert: (alert: AlertWithShop) => void;
+  payment: (payment: Payment) => void;
+}
+
+export type PhotoResult = 'real' | 'tampered';
+
+/** AI check of a photo of the shop's QR stand. */
+export interface PhotoCheck {
+  id: string;
+  shopId: string;
+  result: PhotoResult;
+  /** 0 to 1. */
+  confidence: number;
+  /** "mock" = fixed answers before the model is trained. */
+  modelMode: 'mock' | 'real';
+  createdAt: string;
+}
+
+/** Payment drop check for one shop: last 60 minutes vs the same time on other days. */
+export interface PaymentDropResult {
+  drop: boolean;
+  current: number;
+  normal: number;
+  ratio: number | null;
+  reason: 'DROP' | 'OK' | 'TOO_FEW';
+}
+
+export interface PaymentDropCheck {
+  shopId: string;
+  result: PaymentDropResult;
+  /** The new alert, if the check made one. */
+  alert: AlertWithShop | null;
+}
+
+export type RiskLevel = 'low' | 'medium' | 'high';
+
+/** One reason for a shop's risk score. */
+export interface RiskFactor {
+  label: string;
+  points: number;
+}
+
+/** Risk score 0 (safe) to 100 (high risk), with the reasons (biggest first). */
+export interface ShopRisk {
+  shopId: string;
+  score: number;
+  level: RiskLevel;
+  factors: RiskFactor[];
+  updatedAt: string;
+}
+
+export type ReportStatus = 'open' | 'reviewing' | 'resolved' | 'dismissed';
+
+/** A customer's report of a suspicious QR code. */
+export interface Report {
+  id: string;
+  shopId: string | null;
+  shopName: string | null;
+  scanId: string | null;
+  merchantId: string | null;
+  description: string;
+  status: ReportStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Numbers for the bank team's admin page. */
+export interface AdminOverview {
+  shops: number;
+  verifiedShops: number;
+  highRiskShops: number;
+  scansToday: number;
+  warningsToday: number;
+  alertsToday: number;
+  openReports: number;
 }

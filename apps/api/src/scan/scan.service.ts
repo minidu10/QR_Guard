@@ -100,6 +100,7 @@ export class ScanService {
       shop: qr ? summary(qr.shop) : null,
       expectedShop: expectedShop ? summary(expectedShop) : null,
       qrMerchantName: parsed?.merchantName ?? null,
+      merchantId: parsed?.merchantId ?? null,
     };
   }
 

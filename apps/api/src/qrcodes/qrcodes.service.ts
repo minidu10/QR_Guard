@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import type { GeneratedQrCode } from '@qrguard/types';
+import type { GeneratedQrCode, QrCodeListItem } from '@qrguard/types';
 import { randomInt } from 'node:crypto';
 import * as QRCodeImage from 'qrcode';
 import type { AuthUser } from '../auth/auth.types';
@@ -62,6 +62,21 @@ export class QrCodesService {
     throw new ConflictException('Could not create a unique merchant id. Please try again.');
   }
 
+  /** All QR codes of a shop, newest first. Active ones include the image. */
+  async listForShop(shopId: string, user: AuthUser): Promise<QrCodeListItem[]> {
+    const shop = await this.shops.findById(shopId);
+    this.shops.assertCanManage(shop, user);
+    const rows = await this.prisma.qrCode.findMany({
+      where: { shopId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return Promise.all(
+      rows.map(async (qr) =>
+        qr.status === 'active' ? this.withImage(qr) : { ...this.plain(qr), qrImage: null },
+      ),
+    );
+  }
+
   async revoke(id: string, user: AuthUser): Promise<QrCode> {
     const qr = await this.prisma.qrCode.findUnique({ where: { id }, include: { shop: true } });
     if (!qr) throw new NotFoundException('QR code not found');
@@ -79,11 +94,14 @@ export class QrCodesService {
       errorCorrectionLevel: 'M',
       width: 512,
     });
+    return { ...this.plain(qr), qrImage };
+  }
+
+  private plain(qr: QrCode) {
     return {
       ...qr,
       createdAt: qr.createdAt.toISOString(),
       revokedAt: qr.revokedAt?.toISOString() ?? null,
-      qrImage,
     };
   }
 }

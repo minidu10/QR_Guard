@@ -1,8 +1,10 @@
 import type { ScanResponse } from '@qrguard/types';
-import { BadgeCheck, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { BadgeCheck, Flag, ShieldAlert, ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { DemoPay } from './demo-pay';
 
 // Big green "Safe to pay" or red "Do not pay" screen.
 export function ScanResult({
@@ -47,11 +49,24 @@ export function ScanResult({
         </div>
       )}
 
+      {safe && shop && result.merchantId && (
+        <DemoPay merchantId={result.merchantId} shopName={shop.name} />
+      )}
+
       {!safe && result.qrMerchantName && (
         <p className="rounded-xl border p-4 text-sm">
           The QR code says <span className="font-semibold">“{result.qrMerchantName}”</span>.
           Scammers often copy the real shop name, so the name alone does not prove it is real.
         </p>
+      )}
+
+      {!safe && (
+        <Link
+          href={`/report?scan=${result.scanId}`}
+          className={buttonVariants({ variant: 'outline', size: 'lg' })}
+        >
+          <Flag className="size-4" aria-hidden /> Report this QR code
+        </Link>
       )}
 
       <Button size="lg" onClick={onScanAgain}>

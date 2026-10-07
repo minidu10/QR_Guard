@@ -5,6 +5,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { Env } from './config/env.validation';
+import { RealtimeAdapter } from './realtime/realtime.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -16,10 +17,10 @@ async function bootstrap() {
 
   // Every route lives under /api/v1.
   app.setGlobalPrefix('api/v1');
-  app.enableCors({
-    origin: config.get('CORS_ORIGIN', { infer: true }).split(','),
-    credentials: true,
-  });
+  const origins = config.get('CORS_ORIGIN', { infer: true }).split(',');
+  app.enableCors({ origin: origins, credentials: true });
+  // Live updates (Socket.io) at /socket.io, with the same allowed origins.
+  app.useWebSocketAdapter(new RealtimeAdapter(app, origins));
 
   // Validate every request body. Unknown fields are rejected.
   app.useGlobalPipes(

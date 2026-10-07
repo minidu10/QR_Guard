@@ -3,6 +3,8 @@ import type { Alert, AlertType, AlertWithShop, Severity } from '@qrguard/types';
 import type { AuthUser } from '../auth/auth.types';
 import { Prisma, type Alert as AlertRow } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { RiskService } from '../risk/risk.service';
 import { ShopsService } from '../shops/shops.service';
 
 export interface NewAlert {
@@ -32,13 +34,20 @@ export class AlertsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly shops: ShopsService,
+    private readonly realtime: RealtimeGateway,
+    private readonly risk: RiskService,
   ) {}
 
-  async create(input: NewAlert): Promise<Alert> {
-    const row = await this.prisma.alert.create({
+  /** Saves an alert and sends it live to the shop owner and admins. */
+  async create(input: NewAlert): Promise<AlertWithShop> {
+    const { shop, ...row } = await this.prisma.alert.create({
       data: { ...input, data: (input.data ?? undefined) as Prisma.InputJsonValue | undefined },
+      include: { shop: { select: { name: true } } },
     });
-    return toAlert(row);
+    const alert = { ...toAlert(row), shopName: shop.name };
+    this.realtime.emitAlert(alert);
+    await this.risk.recompute(input.shopId);
+    return alert;
   }
 
   async listForShop(

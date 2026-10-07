@@ -14,6 +14,11 @@
   --ring: oklch(0.708 0 0);
   --safe: oklch(0.6 0.15 150);
   --danger: oklch(0.577 0.245 27.3);
+  --warning: #fab219;
+  /* Charts (validated palette: blue series, gray reference line). */
+  --chart-1: #2a78d6;
+  --chart-normal: #898781;
+  --chart-grid: #e1e0d9;
   --radius: 0.625rem;
 }
 
@@ -29,6 +34,8 @@
     --muted-foreground: oklch(0.708 0 0);
     --border: oklch(1 0 0 / 10%);
     --ring: oklch(0.556 0 0);
+    --chart-1: #3987e5;
+    --chart-grid: #2c2c2a;
   }
 }
 
@@ -45,6 +52,7 @@
   --color-border: var(--border);
   --color-safe: var(--safe);
   --color-danger: var(--danger);
+  --color-warning: var(--warning);
   --radius-xl: calc(var(--radius) + 4px);
 }
 

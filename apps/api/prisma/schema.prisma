@@ -55,6 +55,18 @@ enum Severity {
   high
 }
 
+enum PhotoResult {
+  real
+  tampered
+}
+
+enum ReportStatus {
+  open
+  reviewing
+  resolved
+  dismissed
+}
+
 model User {
   id               String   @id @default(uuid()) @db.Uuid
   name             String
@@ -68,6 +80,7 @@ model User {
 
   shops      Shop[]
   scanChecks ScanCheck[]
+  reports    Report[]
 
   @@map("users")
 }
@@ -88,11 +101,13 @@ model Shop {
   riskScore Int                                    @default(0) @map("risk_score")
   createdAt DateTime                               @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  owner      User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  qrCodes    QrCode[]
-  payments   Payment[]
-  scanChecks ScanCheck[]
-  alerts     Alert[]
+  owner       User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  qrCodes     QrCode[]
+  payments    Payment[]
+  scanChecks  ScanCheck[]
+  alerts      Alert[]
+  photoChecks QrPhotoCheck[]
+  reports     Report[]
 
   @@index([ownerId])
   @@index([location], type: Gist)
@@ -154,6 +169,8 @@ model ScanCheck {
   qrCode QrCode? @relation(fields: [qrCodeId], references: [id], onDelete: SetNull)
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  reports Report[]
+
   @@index([shopId, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
   @@map("scan_checks")
@@ -176,4 +193,46 @@ model Alert {
   @@index([shopId, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
   @@map("alerts")
+}
+
+// The owner's daily photo of the QR stand, checked by the AI service.
+model QrPhotoCheck {
+  id         String      @id @default(uuid()) @db.Uuid
+  shopId     String      @map("shop_id") @db.Uuid
+  // Where the photo is kept in file storage (MinIO / S3).
+  imageKey   String      @map("image_key")
+  result     PhotoResult
+  // 0 to 1. How sure the model is.
+  confidence Float
+  // "mock" (fixed answers before training) or "real" (trained model).
+  modelMode  String      @map("model_mode")
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, createdAt(sort: Desc)])
+  @@map("qr_photo_checks")
+}
+
+// A customer reports a suspicious QR code. Reviewed by the bank team.
+model Report {
+  id          String       @id @default(uuid()) @db.Uuid
+  shopId      String?      @map("shop_id") @db.Uuid
+  // The scan the customer reported from (if any).
+  scanId      String?      @map("scan_id") @db.Uuid
+  // Set only if the customer was logged in.
+  reporterId  String?      @map("reporter_id") @db.Uuid
+  merchantId  String?      @map("merchant_id")
+  description String
+  status      ReportStatus @default(open)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  shop     Shop?      @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  scan     ScanCheck? @relation(fields: [scanId], references: [id], onDelete: SetNull)
+  reporter User?      @relation(fields: [reporterId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([shopId])
+  @@map("reports")
 }

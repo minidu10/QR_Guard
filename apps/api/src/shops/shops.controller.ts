@@ -30,6 +30,14 @@ export class ShopsController {
     return this.shops.create(dto, user);
   }
 
+  @Get()
+  @Roles('owner', 'admin')
+  @ApiBearerAuth()
+  @ApiOkResponse({ type: [ShopDto], description: 'Owners: their shops. Admins: all shops.' })
+  listManaged(@CurrentUser() user: AuthUser) {
+    return this.shops.listManaged(user);
+  }
+
   // Declared before ":id" so "nearby" is not read as an id.
   @Get('nearby')
   @Public()

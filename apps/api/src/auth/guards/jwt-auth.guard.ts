@@ -39,9 +39,11 @@ export class JwtAuthGuard implements CanActivate {
 
   private async verify(token: string): Promise<AuthUser | null> {
     try {
-      const payload = await this.jwt.verifyAsync<JwtPayload>(token, {
+      const payload = await this.jwt.verifyAsync<JwtPayload & { typ?: string }>(token, {
         secret: this.config.get('JWT_ACCESS_SECRET', { infer: true }),
       });
+      // Special tokens (e.g. live connection tickets) are not access tokens.
+      if (payload.typ) return null;
       return { id: payload.sub, role: payload.role };
     } catch {
       return null;
