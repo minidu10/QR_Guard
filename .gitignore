@@ -25,6 +25,8 @@ __pycache__/
 
 # AI models and datasets (too big for git)
 apps/ai-service/models/*.pt
+# Base weights that Ultralytics downloads while training.
+apps/ai-service/*.pt
 apps/ai-service/training/dataset/
 apps/ai-service/runs/
 

@@ -65,7 +65,8 @@ services:
     build: ../apps/ai-service
     restart: unless-stopped
     environment:
-      MODEL_MODE: ${MODEL_MODE:-mock}
+      # real = trained tamper model, mock = fixed answers (see apps/ai-service/training).
+      MODEL_MODE: ${MODEL_MODE:-real}
     ports: ['8000:8000']
 
   api:

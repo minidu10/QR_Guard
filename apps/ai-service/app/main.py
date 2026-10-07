@@ -8,7 +8,7 @@ from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
 
 from app.config import settings
-from app.model import load_model
+from app.model import OnnxModel, load_model
 
 app = FastAPI(
     title="QRGuard AI Service",
@@ -16,7 +16,7 @@ app = FastAPI(
     version="0.2.0",
 )
 
-model = load_model(settings.model_mode)
+model = load_model(settings.model_mode, settings.models_dir)
 
 # Formats we accept, checked from the file itself (not the name or header).
 ALLOWED_FORMATS = {"JPEG", "PNG", "WEBP"}
@@ -29,9 +29,10 @@ class PredictResponse(BaseModel):
 
 
 @app.get("/health", tags=["health"])
-def health() -> dict[str, str]:
-    """Simple check that the service is running."""
-    return {"status": "ok", "mode": model.mode}
+def health() -> dict[str, str | float | None]:
+    """Simple check that the service is running, and which model it uses."""
+    accuracy = model.val_top1 if isinstance(model, OnnxModel) else None
+    return {"status": "ok", "mode": model.mode, "val_accuracy": accuracy}
 
 
 @app.post("/predict", response_model=PredictResponse, tags=["predict"])

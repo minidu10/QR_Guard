@@ -1,0 +1,8 @@
+{
+  "labels": [
+    "real",
+    "tampered"
+  ],
+  "imgsz": 224,
+  "val_top1": 0.995
+}

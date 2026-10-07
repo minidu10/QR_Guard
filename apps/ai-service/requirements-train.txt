@@ -1,0 +1,6 @@
+# Only for training the model (big: includes PyTorch). The service itself needs requirements.txt.
+-r requirements.txt
+ultralytics==8.4.174
+qrcode[pil]==8.2
+onnx==1.23.2
+onnxslim==0.1.97
