@@ -1,6 +1,6 @@
 'use server';
 
-import type { Alert, GeneratedQrCode, RealtimeTicket, Shop } from '@qrguard/types';
+import type { Alert, GeneratedQrCode, PhotoCheck, RealtimeTicket, Shop } from '@qrguard/types';
 import { revalidatePath } from 'next/cache';
 import { redirect, unstable_rethrow } from 'next/navigation';
 import { z } from 'zod';
@@ -73,4 +73,31 @@ export async function createShopAction(_prev: FormState, form: FormData): Promis
     return { error: err instanceof ApiError ? err.message : 'Could not create the shop.', values };
   }
   redirect(`/dashboard?shop=${shop.id}`);
+}
+
+/** Sends the QR stand photo to the API, which asks the AI. */
+export async function uploadPhotoAction(
+  shopId: string,
+  form: FormData,
+): Promise<{ ok: true; check: PhotoCheck } | { ok: false; error: string }> {
+  const photo = form.get('photo');
+  if (!z.uuid().safeParse(shopId).success) return { ok: false, error: 'Unknown shop.' };
+  if (!(photo instanceof File) || photo.size === 0) return { ok: false, error: 'Choose a photo.' };
+  if (photo.size > 5 * 1024 * 1024) return { ok: false, error: 'The photo must be under 5 MB.' };
+
+  const body = new FormData();
+  body.append('photo', photo, photo.name);
+  try {
+    const check = await authedFetch<PhotoCheck>(`/shops/${shopId}/photo-checks`, {
+      method: 'POST',
+      body,
+    });
+    return { ok: true, check };
+  } catch (err) {
+    unstable_rethrow(err);
+    return {
+      ok: false,
+      error: err instanceof ApiError ? err.message : 'Could not check the photo.',
+    };
+  }
 }

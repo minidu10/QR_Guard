@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, '../../'),
   // Lint runs in its own step (pnpm lint).
   eslint: { ignoreDuringBuilds: true },
+  // QR stand photos can be up to 5 MB.
+  experimental: { serverActions: { bodySizeLimit: '6mb' } },
   async headers() {
     return [
       {

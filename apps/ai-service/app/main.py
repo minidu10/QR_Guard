@@ -1,17 +1,54 @@
-"""QRGuard AI service: tamper check and payment anomaly check."""
+"""QRGuard AI service: checks photos of a shop's QR stand for tampered stickers."""
 
-from fastapi import FastAPI
+import io
+from typing import Annotated, Literal
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from PIL import Image, UnidentifiedImageError
+from pydantic import BaseModel, Field
 
 from app.config import settings
+from app.model import load_model
 
 app = FastAPI(
     title="QRGuard AI Service",
-    description="Image tamper check and payment drop check for QRGuard.",
-    version="0.1.0",
+    description="Says if a photo of a shop's QR stand looks real or tampered.",
+    version="0.2.0",
 )
+
+model = load_model(settings.model_mode)
+
+# Formats we accept, checked from the file itself (not the name or header).
+ALLOWED_FORMATS = {"JPEG", "PNG", "WEBP"}
+
+
+class PredictResponse(BaseModel):
+    label: Literal["real", "tampered"]
+    confidence: float = Field(ge=0, le=1)
+    mode: Literal["mock", "real"]
 
 
 @app.get("/health", tags=["health"])
 def health() -> dict[str, str]:
     """Simple check that the service is running."""
-    return {"status": "ok", "mode": settings.model_mode}
+    return {"status": "ok", "mode": model.mode}
+
+
+@app.post("/predict", response_model=PredictResponse, tags=["predict"])
+async def predict(file: Annotated[UploadFile, File()]) -> PredictResponse:
+    """Upload a photo of the QR stand. Returns "real" or "tampered" with a confidence."""
+    max_bytes = settings.max_upload_mb * 1024 * 1024
+    data = await file.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise HTTPException(413, f"Image is too large (max {settings.max_upload_mb} MB).")
+
+    try:
+        image = Image.open(io.BytesIO(data))
+        image.load()
+    except (UnidentifiedImageError, OSError) as err:
+        raise HTTPException(415, "This file is not a photo we can read.") from err
+    if image.format not in ALLOWED_FORMATS:
+        raise HTTPException(415, "Use a JPEG, PNG or WebP photo.")
+
+    result = model.predict(image.convert("RGB"), data, file.filename)
+    return PredictResponse(label=result.label, confidence=result.confidence, mode=model.mode)

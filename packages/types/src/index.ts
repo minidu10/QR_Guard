@@ -153,3 +153,17 @@ export interface RealtimeEvents {
   alert: (alert: AlertWithShop) => void;
   payment: (payment: Payment) => void;
 }
+
+export type PhotoResult = 'real' | 'tampered';
+
+/** AI check of a photo of the shop's QR stand. */
+export interface PhotoCheck {
+  id: string;
+  shopId: string;
+  result: PhotoResult;
+  /** 0 to 1. */
+  confidence: number;
+  /** "mock" = fixed answers before the model is trained. */
+  modelMode: 'mock' | 'real';
+  createdAt: string;
+}

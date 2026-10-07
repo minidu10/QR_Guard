@@ -55,6 +55,11 @@ enum Severity {
   high
 }
 
+enum PhotoResult {
+  real
+  tampered
+}
+
 model User {
   id               String   @id @default(uuid()) @db.Uuid
   name             String
@@ -88,11 +93,12 @@ model Shop {
   riskScore Int                                    @default(0) @map("risk_score")
   createdAt DateTime                               @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  owner      User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  qrCodes    QrCode[]
-  payments   Payment[]
-  scanChecks ScanCheck[]
-  alerts     Alert[]
+  owner       User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  qrCodes     QrCode[]
+  payments    Payment[]
+  scanChecks  ScanCheck[]
+  alerts      Alert[]
+  photoChecks QrPhotoCheck[]
 
   @@index([ownerId])
   @@index([location], type: Gist)
@@ -176,4 +182,23 @@ model Alert {
   @@index([shopId, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
   @@map("alerts")
+}
+
+// The owner's daily photo of the QR stand, checked by the AI service.
+model QrPhotoCheck {
+  id         String      @id @default(uuid()) @db.Uuid
+  shopId     String      @map("shop_id") @db.Uuid
+  // Where the photo is kept in file storage (MinIO / S3).
+  imageKey   String      @map("image_key")
+  result     PhotoResult
+  // 0 to 1. How sure the model is.
+  confidence Float
+  // "mock" (fixed answers before training) or "real" (trained model).
+  modelMode  String      @map("model_mode")
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, createdAt(sort: Desc)])
+  @@map("qr_photo_checks")
 }

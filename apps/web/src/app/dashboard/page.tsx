@@ -1,8 +1,16 @@
-import type { Alert, Payment, PaymentSummary, QrCodeListItem, Shop } from '@qrguard/types';
+import type {
+  Alert,
+  Payment,
+  PaymentSummary,
+  PhotoCheck,
+  QrCodeListItem,
+  Shop,
+} from '@qrguard/types';
 import { BadgeCheck, Plus } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AppHeader } from '@/components/app-header';
+import { PhotoCheckCard } from '@/components/dashboard/photo-check-card';
 import { QrCard } from '@/components/dashboard/qr-card';
 import { ShopLive } from '@/components/dashboard/shop-live';
 import { Badge } from '@/components/ui/badge';
@@ -41,11 +49,12 @@ export default async function DashboardPage({
   }
 
   const shop = shops.find((s) => s.id === wanted) ?? shops[0];
-  const [alerts, payments, summary, qrCodes] = await Promise.all([
+  const [alerts, payments, summary, qrCodes, photoChecks] = await Promise.all([
     authedFetch<Alert[]>(`/shops/${shop.id}/alerts?limit=20`),
     authedFetch<Payment[]>(`/shops/${shop.id}/payments?limit=10`),
     authedFetch<PaymentSummary>(`/shops/${shop.id}/payments/summary`),
     authedFetch<QrCodeListItem[]>(`/shops/${shop.id}/qrcodes`),
+    authedFetch<PhotoCheck[]>(`/shops/${shop.id}/photo-checks?limit=5`),
   ]);
 
   return (
@@ -102,6 +111,7 @@ export default async function DashboardPage({
             initialSummary={summary}
           />
           <aside className="grid gap-4">
+            <PhotoCheckCard key={shop.id} shopId={shop.id} initialChecks={photoChecks} />
             <QrCard shop={shop} qrCodes={qrCodes} />
           </aside>
         </div>

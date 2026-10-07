@@ -47,7 +47,7 @@ export async function apiFetch<T>(
       cache: 'no-store',
       signal: AbortSignal.timeout(10000),
       headers: {
-        'Content-Type': 'application/json',
+        ...(typeof rest.body === 'string' ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(ip ? { 'X-Forwarded-For': ip } : {}),
         ...headers,
