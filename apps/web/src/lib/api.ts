@@ -1,4 +1,5 @@
 import type { HealthResponse } from '@qrguard/types';
+import { headers as requestHeaders } from 'next/headers';
 import 'server-only';
 
 // Server-side URL for the API (inside Docker this is http://api:4000).
@@ -22,12 +23,23 @@ function errorMessage(body: unknown, status: number): string {
   return status >= 500 ? 'Something went wrong. Please try again.' : 'Request failed.';
 }
 
+// The user's IP address, so the API rate-limits each user and not this web server.
+async function clientIp(): Promise<string | undefined> {
+  try {
+    const h = await requestHeaders();
+    return h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || undefined;
+  } catch {
+    return undefined; // Not inside a request (e.g. at build time).
+  }
+}
+
 /** Calls the API from the Next.js server. Throws ApiError on a non-2xx answer. */
 export async function apiFetch<T>(
   path: string,
   init: RequestInit & { token?: string } = {},
 ): Promise<T> {
   const { token, headers, ...rest } = init;
+  const ip = await clientIp();
   let res: Response;
   try {
     res = await fetch(`${API_URL}/api/v1${path}`, {
@@ -37,6 +49,7 @@ export async function apiFetch<T>(
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(ip ? { 'X-Forwarded-For': ip } : {}),
         ...headers,
       },
     });

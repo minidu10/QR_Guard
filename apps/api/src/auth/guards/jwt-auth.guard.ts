@@ -8,6 +8,7 @@ import type { AuthUser, JwtPayload } from '../auth.types';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 // Runs on every route. Needs a valid access token unless the route is @Public().
+// Public routes still get req.user when a valid token is sent (e.g. a logged-in customer scanning).
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
@@ -21,20 +22,29 @@ export class JwtAuthGuard implements CanActivate {
       ctx.getHandler(),
       ctx.getClass(),
     ]);
-    if (isPublic) return true;
-
     const req = ctx.switchToHttp().getRequest<Request & { user?: AuthUser }>();
     const [type, token] = req.headers.authorization?.split(' ') ?? [];
-    if (type !== 'Bearer' || !token) throw new UnauthorizedException('Missing access token');
+    const hasToken = type === 'Bearer' && Boolean(token);
 
+    if (isPublic) {
+      if (hasToken) req.user = (await this.verify(token)) ?? undefined;
+      return true;
+    }
+    if (!hasToken) throw new UnauthorizedException('Missing access token');
+    const user = await this.verify(token);
+    if (!user) throw new UnauthorizedException('Invalid or expired access token');
+    req.user = user;
+    return true;
+  }
+
+  private async verify(token: string): Promise<AuthUser | null> {
     try {
       const payload = await this.jwt.verifyAsync<JwtPayload>(token, {
         secret: this.config.get('JWT_ACCESS_SECRET', { infer: true }),
       });
-      req.user = { id: payload.sub, role: payload.role };
-      return true;
+      return { id: payload.sub, role: payload.role };
     } catch {
-      throw new UnauthorizedException('Invalid or expired access token');
+      return null;
     }
   }
 }
