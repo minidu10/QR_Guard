@@ -1,4 +1,4 @@
-import { ShieldCheck } from 'lucide-react';
+import { ScanLine, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { logoutAction } from '@/app/actions';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +31,10 @@ export default async function HomePage() {
           <p className="text-muted-foreground">Stop fake QR sticker scams before you pay.</p>
         </div>
       </header>
+
+      <Link href="/scan" className={buttonVariants({ size: 'lg', className: 'h-16 text-lg' })}>
+        <ScanLine className="size-6" aria-hidden /> Check a QR code
+      </Link>
 
       {user ? (
         <div className="flex items-center justify-between gap-4 rounded-xl border px-4 py-3">

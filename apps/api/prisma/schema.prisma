@@ -27,6 +27,34 @@ enum PaymentStatus {
   failed
 }
 
+enum ScanResult {
+  safe
+  warning
+}
+
+// Why a scan was marked safe or not.
+enum ScanReason {
+  OK
+  NOT_PAYMENT_QR
+  BAD_CHECKSUM
+  UNKNOWN_MERCHANT
+  REVOKED_QR
+  WRONG_SHOP
+}
+
+enum AlertType {
+  SCAN_MISMATCH
+  TAMPER_DETECTED
+  PAYMENT_DROP
+  CUSTOMER_REPORT
+}
+
+enum Severity {
+  low
+  medium
+  high
+}
+
 model User {
   id               String   @id @default(uuid()) @db.Uuid
   name             String
@@ -38,7 +66,8 @@ model User {
   refreshTokenHash String?  @map("refresh_token_hash")
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  shops Shop[]
+  shops      Shop[]
+  scanChecks ScanCheck[]
 
   @@map("users")
 }
@@ -59,9 +88,11 @@ model Shop {
   riskScore Int                                    @default(0) @map("risk_score")
   createdAt DateTime                               @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  owner    User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  qrCodes  QrCode[]
-  payments Payment[]
+  owner      User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  qrCodes    QrCode[]
+  payments   Payment[]
+  scanChecks ScanCheck[]
+  alerts     Alert[]
 
   @@index([ownerId])
   @@index([location], type: Gist)
@@ -78,7 +109,8 @@ model QrCode {
   revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(3)
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shop       Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  scanChecks ScanCheck[]
 
   @@index([shopId])
   @@map("qr_codes")
@@ -100,4 +132,48 @@ model Payment {
 
   @@index([shopId, createdAt(sort: Desc)])
   @@map("payments")
+}
+
+// One customer QR scan and its result.
+model ScanCheck {
+  id         String     @id @default(uuid()) @db.Uuid
+  // The shop the customer is at: picked by the customer, or the nearest shop.
+  shopId     String?    @map("shop_id") @db.Uuid
+  // Our QR code with the scanned merchant id (null if the merchant id is unknown).
+  qrCodeId   String?    @map("qr_code_id") @db.Uuid
+  merchantId String?    @map("merchant_id")
+  result     ScanResult
+  reason     ScanReason
+  // Set only if the customer was logged in. Scanning works without an account.
+  userId     String?    @map("user_id") @db.Uuid
+  lat        Float?
+  lng        Float?
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  shop   Shop?   @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  qrCode QrCode? @relation(fields: [qrCodeId], references: [id], onDelete: SetNull)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([shopId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("scan_checks")
+}
+
+// A warning for a shop owner (and the bank team).
+model Alert {
+  id        String    @id @default(uuid()) @db.Uuid
+  shopId    String    @map("shop_id") @db.Uuid
+  type      AlertType
+  severity  Severity
+  message   String
+  // Extra details, e.g. the fake merchant id that was scanned.
+  data      Json?
+  read      Boolean   @default(false)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("alerts")
 }

@@ -33,6 +33,11 @@ export async function clearSession() {
   for (const name of [ACCESS, REFRESH, USER]) jar.delete(name);
 }
 
+/** The access token for API calls, or undefined if not logged in. */
+export async function getAccessToken(): Promise<string | undefined> {
+  return (await cookies()).get(ACCESS)?.value;
+}
+
 /** The logged-in user for display, or null. */
 export async function getSessionUser(): Promise<PublicUser | null> {
   const raw = (await cookies()).get(USER)?.value;

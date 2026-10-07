@@ -66,3 +66,50 @@ export interface QrCode {
 export interface GeneratedQrCode extends QrCode {
   qrImage: string;
 }
+
+/** Why a scan is safe or not. */
+export type ScanReason =
+  'OK' | 'NOT_PAYMENT_QR' | 'BAD_CHECKSUM' | 'UNKNOWN_MERCHANT' | 'REVOKED_QR' | 'WRONG_SHOP';
+
+/** Short shop info shown on the scan result screen. */
+export interface ShopSummary {
+  id: string;
+  name: string;
+  address: string;
+  verified: boolean;
+}
+
+/** Returned by POST /scan. */
+export interface ScanResponse {
+  scanId: string;
+  safe: boolean;
+  reason: ScanReason;
+  /** Simple English message for the customer. */
+  message: string;
+  /** The shop that owns the scanned QR code (null if unknown). */
+  shop: ShopSummary | null;
+  /** The shop the customer is at (picked, or the nearest one). */
+  expectedShop: ShopSummary | null;
+  /** Merchant name written inside the QR (a fake QR can copy the real name). */
+  qrMerchantName: string | null;
+}
+
+export type AlertType = 'SCAN_MISMATCH' | 'TAMPER_DETECTED' | 'PAYMENT_DROP' | 'CUSTOMER_REPORT';
+
+export type Severity = 'low' | 'medium' | 'high';
+
+export interface Alert {
+  id: string;
+  shopId: string;
+  type: AlertType;
+  severity: Severity;
+  message: string;
+  data: Record<string, unknown> | null;
+  read: boolean;
+  createdAt: string;
+}
+
+/** An alert with the shop name (used in lists that mix shops). */
+export interface AlertWithShop extends Alert {
+  shopName: string;
+}
